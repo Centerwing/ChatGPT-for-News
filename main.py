@@ -70,13 +70,15 @@ with gr.Blocks(theme=set_theme, analytics_enabled=False, css=advanced_css) as de
                         if not crazy_fns[k].get("AsButton", True): continue
                         variant = crazy_fns[k]["Color"] if "Color" in crazy_fns[k] else "secondary"
                         crazy_fns[k]["Button"] = gr.Button(k, variant=variant)
-                with gr.Row():
-                    with gr.Accordion("更多函数插件", open=True):
-                        dropdown_fn_list = [k for k in crazy_fns.keys() if not crazy_fns[k].get("AsButton", True)]
-                        with gr.Column(scale=1):
-                            dropdown = gr.Dropdown(dropdown_fn_list, value=r"打开插件列表", label="").style(container=False)
-                        with gr.Column(scale=1):
-                           switchy_bt = gr.Button(r"请先从插件列表中选择", variant="secondary")
+
+                #with gr.Row():
+                #    with gr.Accordion("更多函数插件", open=True):
+                #        dropdown_fn_list = [k for k in crazy_fns.keys() if not crazy_fns[k].get("AsButton", True)]
+                #        with gr.Column(scale=1):
+                #            dropdown = gr.Dropdown(dropdown_fn_list, value=r"打开插件列表", label="").style(container=False)
+                #        with gr.Column(scale=1):
+                #           switchy_bt = gr.Button(r"请先从插件列表中选择", variant="secondary")
+
                 with gr.Row():
                     with gr.Accordion("点击展开“文件上传区”。上传本地文件可供红色函数插件调用。", open=False) as area_file_up:
                         file_upload = gr.Files(label="任何文件, 但推荐上传压缩文件(zip, tar)", file_count="multiple")
@@ -121,15 +123,15 @@ with gr.Blocks(theme=set_theme, analytics_enabled=False, css=advanced_css) as de
 
         cancel_handles.append(click_handle)
     # 函数插件-下拉菜单与随变按钮的互动
-    def on_dropdown_changed(k):
-        variant = crazy_fns[k]["Color"] if "Color" in crazy_fns[k] else "secondary"
-        return {switchy_bt: gr.update(value=k, variant=variant)}
-    dropdown.select(on_dropdown_changed, [dropdown], [switchy_bt] )
+    #def on_dropdown_changed(k):
+    #    variant = crazy_fns[k]["Color"] if "Color" in crazy_fns[k] else "secondary"
+    #    return {switchy_bt: gr.update(value=k, variant=variant)}
+    #dropdown.select(on_dropdown_changed, [dropdown], [switchy_bt] )
     # 随变按钮的回调函数注册
-    def route(k, *args, **kwargs):
-        if k in [r"打开插件列表", r"请先从插件列表中选择"]: return 
-        yield from crazy_fns[k]["Function"](*args, **kwargs)
-    click_handle = switchy_bt.click(route,[switchy_bt, *input_combo, gr.State(PORT)], output_combo)
+    #def route(k, *args, **kwargs):
+    #    if k in [r"打开插件列表", r"请先从插件列表中选择"]: return 
+    #    yield from crazy_fns[k]["Function"](*args, **kwargs)
+    #click_handle = switchy_bt.click(route,[switchy_bt, *input_combo, gr.State(PORT)], output_combo)
 
     click_handle.then(on_report_generated, [file_upload, chatbot], [file_upload, chatbot])
 
