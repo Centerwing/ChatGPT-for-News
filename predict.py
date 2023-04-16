@@ -12,7 +12,6 @@
 """
 
 import json
-import time
 import gradio as gr
 import logging
 import traceback
@@ -21,7 +20,7 @@ import importlib
 
 # config_private.py放自己的秘密如API和代理网址
 # 读取时首先看是否存在私密的config_private配置文件（不受git管控），如果有，则覆盖原config文件
-from toolbox import get_conf, update_ui
+from toolbox import get_conf
 proxies, API_URL, API_KEY, TIMEOUT_SECONDS, MAX_RETRY, LLM_MODEL = \
     get_conf('proxies', 'API_URL', 'API_KEY', 'TIMEOUT_SECONDS', 'MAX_RETRY', 'LLM_MODEL')
 
@@ -39,23 +38,45 @@ def get_full_error(chunk, stream_response):
             break
     return chunk
 
+def predict_no_ui(inputs, top_p, temperature, history=[], sys_prompt=""):
+    """
+        发送至chatGPT，等待回复，一次性完成，不显示中间过程。
+        predict函数的简化版。
+        用于payload比较大的情况，或者用于实现多线、带嵌套的复杂功能。
 
-def predict_no_ui_long_connection(inputs, llm_kwargs, history=[], sys_prompt="", observe_window=None, console_slience=False):
+        inputs 是本次问询的输入
+        top_p, temperature是chatGPT的内部调优参数
+        history 是之前的对话列表
+        （注意无论是inputs还是history，内容太长了都会触发token数量溢出的错误，然后raise ConnectionAbortedError）
     """
-        发送至chatGPT，等待回复，一次性完成，不显示中间过程。但内部用stream的方法避免中途网线被掐。
-        inputs：
-            是本次问询的输入
-        sys_prompt:
-            系统静默prompt
-        llm_kwargs：
-            chatGPT的内部调优参数
-        history：
-            是之前的对话列表
-        observe_window = None：
-            用于负责跨越线程传递已经输出的部分，大部分时候仅仅为了fancy的视觉效果，留空即可。observe_window[0]：观测窗。observe_window[1]：看门狗
+    headers, payload = generate_payload(inputs, top_p, temperature, history, system_prompt=sys_prompt, stream=False)
+
+    retry = 0
+    while True:
+        try:
+            # make a POST request to the API endpoint, stream=False
+            response = requests.post(API_URL, headers=headers, proxies=proxies,
+                                    json=payload, stream=False, timeout=TIMEOUT_SECONDS*2); break
+        except requests.exceptions.ReadTimeout as e:
+            retry += 1
+            traceback.print_exc()
+            if retry > MAX_RETRY: raise TimeoutError
+            if MAX_RETRY!=0: print(f'请求超时，正在重试 ({retry}/{MAX_RETRY}) ……')
+
+    try:
+        result = json.loads(response.text)["choices"][0]["message"]["content"]
+        return result
+    except Exception as e:
+        if "choices" not in response.text: print(response.text)
+        raise ConnectionAbortedError("Json解析不合常规，可能是文本过长" + response.text)
+
+
+def predict_no_ui_long_connection(inputs, top_p, temperature, history=[], sys_prompt=""):
     """
-    watch_dog_patience = 5 # 看门狗的耐心, 设置5秒即可
-    headers, payload = generate_payload(inputs, llm_kwargs, history, system_prompt=sys_prompt, stream=True)
+        发送至chatGPT，等待回复，一次性完成，不显示中间过程。但内部用stream的方法避免有人中途掐网线。
+    """
+    headers, payload = generate_payload(inputs, top_p, temperature, history, system_prompt=sys_prompt, stream=True)
+
     retry = 0
     while True:
         try:
@@ -72,10 +93,7 @@ def predict_no_ui_long_connection(inputs, llm_kwargs, history=[], sys_prompt="",
     result = ''
     while True:
         try: chunk = next(stream_response).decode()
-        except StopIteration: 
-            break
-        except requests.exceptions.ConnectionError:
-            chunk = next(stream_response).decode() # 失败了，重试一次？再失败就没办法了。
+        except StopIteration: break
         if len(chunk)==0: continue
         if not chunk.startswith('data:'): 
             error_msg = get_full_error(chunk.encode('utf8'), stream_response).decode()
@@ -87,23 +105,15 @@ def predict_no_ui_long_connection(inputs, llm_kwargs, history=[], sys_prompt="",
         delta = json_data["delta"]
         if len(delta) == 0: break
         if "role" in delta: continue
-        if "content" in delta: 
-            result += delta["content"]
-            if not console_slience: print(delta["content"], end='')
-            if observe_window is not None: 
-                # 观测窗，把已经获取的数据显示出去
-                if len(observe_window) >= 1: observe_window[0] += delta["content"]
-                # 看门狗，如果超过期限没有喂狗，则终止
-                if len(observe_window) >= 2:  
-                    if (time.time()-observe_window[1]) > watch_dog_patience:
-                        raise RuntimeError("用户取消了程序。")
+        if "content" in delta: result += delta["content"]; print(delta["content"], end='')
         else: raise RuntimeError("意外Json结构："+delta)
     if json_data['finish_reason'] == 'length':
-        raise ConnectionAbortedError("正常结束，但显示Token不足，导致输出不完整，请削减单次输入的文本量。")
+        raise ConnectionAbortedError("正常结束，但显示Token不足。")
     return result
 
 
-def predict(inputs, llm_kwargs, plugin_kwargs, chatbot, history=[], system_prompt='', stream = True, additional_fn=None):
+def predict(inputs, top_p, temperature, chatbot=[], history=[], system_prompt='', 
+            stream = True, additional_fn=None):
     """
         发送至chatGPT，流式获取输出。
         用于基础的对话功能。
@@ -113,30 +123,20 @@ def predict(inputs, llm_kwargs, plugin_kwargs, chatbot, history=[], system_promp
         chatbot 为WebUI中显示的对话列表，修改它，然后yeild出去，可以直接修改对话界面内容
         additional_fn代表点击的哪个按钮，按钮见functional.py
     """
-    if inputs.startswith('sk-') and len(inputs) == 51:
-        chatbot._cookies['api_key'] = inputs
-        chatbot.append(("输入已识别为openai的api_key", "api_key已导入"))
-        yield from update_ui(chatbot=chatbot, history=history, msg="api_key已导入") # 刷新界面
-        return
-    elif len(chatbot._cookies['api_key']) != 51:
-        chatbot.append((inputs, "缺少api_key。\n\n1. 临时解决方案：直接在输入区键入api_key，然后回车提交。\n\n2. 长效解决方案：在config.py中配置。"))
-        yield from update_ui(chatbot=chatbot, history=history, msg="api_key已导入") # 刷新界面
-        return
-
     if additional_fn is not None:
-        import core_functional
-        importlib.reload(core_functional)    # 热更新prompt
-        core_functional = core_functional.get_core_functions()
-        if "PreProcess" in core_functional[additional_fn]: inputs = core_functional[additional_fn]["PreProcess"](inputs)  # 获取预处理函数（如果有的话）
-        inputs = core_functional[additional_fn]["Prefix"] + inputs + core_functional[additional_fn]["Suffix"]
+        import functional
+        importlib.reload(functional)    # 热更新prompt
+        functional = functional.get_functionals()
+        if "PreProcess" in functional[additional_fn]: inputs = functional[additional_fn]["PreProcess"](inputs)  # 获取预处理函数（如果有的话）
+        inputs = functional[additional_fn]["Prefix"] + inputs + functional[additional_fn]["Suffix"]
 
     if stream:
         raw_input = inputs
         logging.info(f'[raw_input] {raw_input}')
         chatbot.append((inputs, ""))
-        yield from update_ui(chatbot=chatbot, history=history, msg="等待响应") # 刷新界面
+        yield chatbot, history, "等待响应"
 
-    headers, payload = generate_payload(inputs, llm_kwargs, history, system_prompt, stream)
+    headers, payload = generate_payload(inputs, top_p, temperature, history, system_prompt, stream)
     history.append(inputs); history.append(" ")
 
     retry = 0
@@ -149,7 +149,7 @@ def predict(inputs, llm_kwargs, plugin_kwargs, chatbot, history=[], system_promp
             retry += 1
             chatbot[-1] = ((chatbot[-1][0], timeout_bot_msg))
             retry_msg = f"，正在重试 ({retry}/{MAX_RETRY}) ……" if MAX_RETRY > 0 else ""
-            yield from update_ui(chatbot=chatbot, history=history, msg="请求超时"+retry_msg) # 刷新界面
+            yield chatbot, history, "请求超时"+retry_msg
             if retry > MAX_RETRY: raise TimeoutError
 
     gpt_replying_buffer = ""
@@ -177,37 +177,34 @@ def predict(inputs, llm_kwargs, plugin_kwargs, chatbot, history=[], system_promp
                     gpt_replying_buffer = gpt_replying_buffer + json.loads(chunk.decode()[6:])['choices'][0]["delta"]["content"]
                     history[-1] = gpt_replying_buffer
                     chatbot[-1] = (history[-2], history[-1])
-                    yield from update_ui(chatbot=chatbot, history=history, msg=status_text) # 刷新界面
+                    yield chatbot, history, status_text
 
                 except Exception as e:
                     traceback.print_exc()
-                    yield from update_ui(chatbot=chatbot, history=history, msg="Json解析不合常规") # 刷新界面
+                    yield chatbot, history, "Json解析不合常规"
                     chunk = get_full_error(chunk, stream_response)
                     error_msg = chunk.decode()
                     if "reduce the length" in error_msg:
-                        chatbot[-1] = (chatbot[-1][0], "[Local Message] Reduce the length. 本次输入过长，或历史数据过长. 历史缓存数据现已释放，您可以请再次尝试.")
+                        chatbot[-1] = (chatbot[-1][0], "[Local Message] Input (or history) is too long, please reduce input or clear history by refreshing this page.")
                         history = []    # 清除历史
                     elif "Incorrect API key" in error_msg:
-                        chatbot[-1] = (chatbot[-1][0], "[Local Message] Incorrect API key. OpenAI以提供了不正确的API_KEY为由，拒绝服务.")
+                        chatbot[-1] = (chatbot[-1][0], "[Local Message] Incorrect API key provided.")
                     elif "exceeded your current quota" in error_msg:
                         chatbot[-1] = (chatbot[-1][0], "[Local Message] You exceeded your current quota. OpenAI以账户额度不足为由，拒绝服务.")
                     else:
                         from toolbox import regular_txt_to_markdown
                         tb_str = '```\n' + traceback.format_exc() + '```'
                         chatbot[-1] = (chatbot[-1][0], f"[Local Message] 异常 \n\n{tb_str} \n\n{regular_txt_to_markdown(chunk.decode()[4:])}")
-                    yield from update_ui(chatbot=chatbot, history=history, msg="Json异常" + error_msg) # 刷新界面
+                    yield chatbot, history, "Json异常" + error_msg
                     return
 
-def generate_payload(inputs, llm_kwargs, history, system_prompt, stream):
+def generate_payload(inputs, top_p, temperature, history, system_prompt, stream):
     """
         整合所有信息，选择LLM模型，生成http请求，为发送请求做准备
     """
-    if len(llm_kwargs['api_key']) != 51:
-        raise AssertionError("你提供了错误的API_KEY。\n\n1. 临时解决方案：直接在输入区键入api_key，然后回车提交。\n\n2. 长效解决方案：在config.py中配置。")
-
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {llm_kwargs['api_key']}"
+        "Authorization": f"Bearer {API_KEY}"
     }
 
     conversation_cnt = len(history) // 2
@@ -235,19 +232,17 @@ def generate_payload(inputs, llm_kwargs, history, system_prompt, stream):
     messages.append(what_i_ask_now)
 
     payload = {
-        "model": llm_kwargs['llm_model'],
+        "model": LLM_MODEL,
         "messages": messages, 
-        "temperature": llm_kwargs['temperature'],  # 1.0,
-        "top_p": llm_kwargs['top_p'],  # 1.0,
+        "temperature": temperature,  # 1.0,
+        "top_p": top_p,  # 1.0,
         "n": 1,
         "stream": stream,
         "presence_penalty": 0,
         "frequency_penalty": 0,
     }
-    try:
-        print(f" {llm_kwargs['llm_model']} : {conversation_cnt} : {inputs[:100]} ..........")
-    except:
-        print('输入中可能存在乱码。')
+    
+    print(f" {LLM_MODEL} : {conversation_cnt} : {inputs}")
     return headers,payload
 
 

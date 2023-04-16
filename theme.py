@@ -1,6 +1,5 @@
-import gradio as gr
-from toolbox import get_conf
-CODE_HIGHLIGHT, = get_conf('CODE_HIGHLIGHT')
+import gradio as gr 
+
 # gradio可用颜色列表
 # gr.themes.utils.colors.slate (石板色)
 # gr.themes.utils.colors.gray (灰色)
@@ -25,16 +24,14 @@ CODE_HIGHLIGHT, = get_conf('CODE_HIGHLIGHT')
 # gr.themes.utils.colors.pink (粉红色)
 # gr.themes.utils.colors.rose (玫瑰色)
 
-
 def adjust_theme():
-    try:
-        color_er = gr.themes.utils.colors.fuchsia
-        set_theme = gr.themes.Default(
-            primary_hue=gr.themes.utils.colors.orange,
-            neutral_hue=gr.themes.utils.colors.gray,
-            font=["sans-serif", "Microsoft YaHei", "ui-sans-serif", "system-ui",
-                  "sans-serif", gr.themes.utils.fonts.GoogleFont("Source Sans Pro")],
-            font_mono=["ui-monospace", "Consolas", "monospace", gr.themes.utils.fonts.GoogleFont("IBM Plex Mono")])
+    try: 
+        color_er = gr.themes.utils.colors.pink
+        set_theme = gr.themes.Default( 
+                        primary_hue=gr.themes.utils.colors.orange,
+                        neutral_hue=gr.themes.utils.colors.gray,
+                        font=["sans-serif", "Microsoft YaHei", "ui-sans-serif", "system-ui", "sans-serif", gr.themes.utils.fonts.GoogleFont("Source Sans Pro")], 
+                        font_mono=["ui-monospace", "Consolas", "monospace", gr.themes.utils.fonts.GoogleFont("IBM Plex Mono")])
         set_theme.set(
             # Colors
             input_background_fill_dark="*neutral_800",
@@ -80,11 +77,9 @@ def adjust_theme():
             button_cancel_text_color=color_er.c600,
             button_cancel_text_color_dark="white",
         )
-    except:
-        set_theme = None
-        print('gradio版本较旧, 不能自定义字体和颜色')
+    except: 
+        set_theme = None; print('gradio版本较旧, 不能自定义字体和颜色')
     return set_theme
-
 
 advanced_css = """
 /* 设置表格的外边距为1em，内部单元格之间边框合并，空单元格显示. */
@@ -154,78 +149,4 @@ advanced_css = """
     padding: 1em;
     margin: 1em 2em 1em 0.5em;
 }
-
-"""
-
-if CODE_HIGHLIGHT:
-    advanced_css += """
-
-.hll { background-color: #ffffcc }
-.c { color: #3D7B7B; font-style: italic } /* Comment */
-.err { border: 1px solid #FF0000 } /* Error */
-.k { color: hsl(197, 94%, 51%); font-weight: bold } /* Keyword */
-.o { color: #666666 } /* Operator */
-.ch { color: #3D7B7B; font-style: italic } /* Comment.Hashbang */
-.cm { color: #3D7B7B; font-style: italic } /* Comment.Multiline */
-.cp { color: #9C6500 } /* Comment.Preproc */
-.cpf { color: #3D7B7B; font-style: italic } /* Comment.PreprocFile */
-.c1 { color: #3D7B7B; font-style: italic } /* Comment.Single */
-.cs { color: #3D7B7B; font-style: italic } /* Comment.Special */
-.gd { color: #A00000 } /* Generic.Deleted */
-.ge { font-style: italic } /* Generic.Emph */
-.gr { color: #E40000 } /* Generic.Error */
-.gh { color: #000080; font-weight: bold } /* Generic.Heading */
-.gi { color: #008400 } /* Generic.Inserted */
-.go { color: #717171 } /* Generic.Output */
-.gp { color: #000080; font-weight: bold } /* Generic.Prompt */
-.gs { font-weight: bold } /* Generic.Strong */
-.gu { color: #800080; font-weight: bold } /* Generic.Subheading */
-.gt { color: #a9dd00 } /* Generic.Traceback */
-.kc { color: #008000; font-weight: bold } /* Keyword.Constant */
-.kd { color: #008000; font-weight: bold } /* Keyword.Declaration */
-.kn { color: #008000; font-weight: bold } /* Keyword.Namespace */
-.kp { color: #008000 } /* Keyword.Pseudo */
-.kr { color: #008000; font-weight: bold } /* Keyword.Reserved */
-.kt { color: #B00040 } /* Keyword.Type */
-.m { color: #666666 } /* Literal.Number */
-.s { color: #BA2121 } /* Literal.String */
-.na { color: #687822 } /* Name.Attribute */
-.nb { color: #e5f8c3 } /* Name.Builtin */
-.nc { color: #ffad65; font-weight: bold } /* Name.Class */
-.no { color: #880000 } /* Name.Constant */
-.nd { color: #AA22FF } /* Name.Decorator */
-.ni { color: #717171; font-weight: bold } /* Name.Entity */
-.ne { color: #CB3F38; font-weight: bold } /* Name.Exception */
-.nf { color: #f9f978 } /* Name.Function */
-.nl { color: #767600 } /* Name.Label */
-.nn { color: #0000FF; font-weight: bold } /* Name.Namespace */
-.nt { color: #008000; font-weight: bold } /* Name.Tag */
-.nv { color: #19177C } /* Name.Variable */
-.ow { color: #AA22FF; font-weight: bold } /* Operator.Word */
-.w { color: #bbbbbb } /* Text.Whitespace */
-.mb { color: #666666 } /* Literal.Number.Bin */
-.mf { color: #666666 } /* Literal.Number.Float */
-.mh { color: #666666 } /* Literal.Number.Hex */
-.mi { color: #666666 } /* Literal.Number.Integer */
-.mo { color: #666666 } /* Literal.Number.Oct */
-.sa { color: #BA2121 } /* Literal.String.Affix */
-.sb { color: #BA2121 } /* Literal.String.Backtick */
-.sc { color: #BA2121 } /* Literal.String.Char */
-.dl { color: #BA2121 } /* Literal.String.Delimiter */
-.sd { color: #BA2121; font-style: italic } /* Literal.String.Doc */
-.s2 { color: #2bf840 } /* Literal.String.Double */
-.se { color: #AA5D1F; font-weight: bold } /* Literal.String.Escape */
-.sh { color: #BA2121 } /* Literal.String.Heredoc */
-.si { color: #A45A77; font-weight: bold } /* Literal.String.Interpol */
-.sx { color: #008000 } /* Literal.String.Other */
-.sr { color: #A45A77 } /* Literal.String.Regex */
-.s1 { color: #BA2121 } /* Literal.String.Single */
-.ss { color: #19177C } /* Literal.String.Symbol */
-.bp { color: #008000 } /* Name.Builtin.Pseudo */
-.fm { color: #0000FF } /* Name.Function.Magic */
-.vc { color: #19177C } /* Name.Variable.Class */
-.vg { color: #19177C } /* Name.Variable.Global */
-.vi { color: #19177C } /* Name.Variable.Instance */
-.vm { color: #19177C } /* Name.Variable.Magic */
-.il { color: #666666 } /* Literal.Number.Integer.Long */
 """

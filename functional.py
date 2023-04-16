@@ -4,20 +4,19 @@
 # 默认按钮颜色是 secondary
 from toolbox import clear_line_break
 
-
-def get_core_functions():
+def get_functionals():
     return {
         "英语学术润色": {
             # 前言
             "Prefix":   r"Below is a paragraph from an academic paper. Polish the writing to meet the academic style, " +
                         r"improve the spelling, grammar, clarity, concision and overall readability. When necessary, rewrite the whole sentence. " +
                         r"Furthermore, list all modification and explain the reasons to do so in markdown table." + "\n\n",
-            # 后语
+            # 后语 
             "Suffix":   r"",
             "Color":    r"secondary",    # 按钮颜色
         },
         "中文学术润色": {
-            "Prefix":   r"作为一名中文学术论文写作改进助理，你的任务是改进所提供文本的拼写、语法、清晰、简洁和整体可读性，" +
+            "Prefix":   r"作为一名中文学术论文写作改进助理，你的任务是改进所提供文本的拼写、语法、清晰、简洁和整体可读性，" + 
                         r"同时分解长句，减少重复，并提供改进建议。请只提供文本的更正版本，避免包括解释。请编辑以下文本" + "\n\n",
             "Suffix":   r"",
         },
@@ -56,7 +55,7 @@ def get_core_functions():
             "Color": "secondary",
         },
         "英译中": {
-            "Prefix":   r"翻译成地道的中文：" + "\n\n",
+            "Prefix":   r"请翻译成中文：" + "\n\n",
             "Suffix":   r"",
         },
         "找图片": {
