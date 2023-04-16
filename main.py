@@ -11,9 +11,9 @@ proxies, WEB_PORT, LLM_MODEL, CONCURRENT_COUNT, AUTHENTICATION, CHATBOT_HEIGHT =
 PORT = find_free_port() if WEB_PORT <= 0 else WEB_PORT
 if not AUTHENTICATION: AUTHENTICATION = None
 
-initial_prompt = "Serve me as a writing and programming assistant."
+initial_prompt = "Pretend you are a financial expert. You are a financial expert with stock recommendation experience."
 title_html = "<h1 align=\"center\">ChatGPT 新闻分析</h1>"
-description =  """代码开源和更新[地址🚀](https://github.com/binary-husky/chatgpt_academic)，感谢热情的[开发者们❤️](https://github.com/binary-husky/chatgpt_academic/graphs/contributors)"""
+description =  """A fork of https://github.com/binary-husky/chatgpt_academic"""
 
 # 问询记录, python 版本建议3.9+（越新越好）
 import logging
@@ -23,8 +23,8 @@ except:logging.basicConfig(filename="gpt_log/chat_secrets.log", level=logging.IN
 print("所有问询记录将自动保存在本地目录./gpt_log/chat_secrets.log, 请注意自我隐私保护哦！")
 
 # 一些普通功能模块
-from functional import get_functionals
-functional = get_functionals()
+#from functional import get_functionals
+#functional = get_functionals()
 
 # 高级函数插件
 from functional_crazy import get_crazy_functionals
@@ -57,11 +57,11 @@ with gr.Blocks(theme=set_theme, analytics_enabled=False, css=advanced_css) as de
                 from check_proxy import check_proxy
                 status = gr.Markdown(f"Tip: 按Enter提交, 按Shift+Enter换行。当前模型: {LLM_MODEL} \n {check_proxy(proxies)}")
             ### 这里是原本的基础功能区
-            with gr.Accordion("基础功能区", open=True) as area_basic_fn:
-                with gr.Row():
-                    for k in functional:
-                        variant = functional[k]["Color"] if "Color" in functional[k] else "secondary"
-                        functional[k]["Button"] = gr.Button(k, variant=variant)
+            #with gr.Accordion("基础功能区", open=True) as area_basic_fn:
+            #    with gr.Row():
+            #        for k in functional:
+            #            variant = functional[k]["Color"] if "Color" in functional[k] else "secondary"
+            #            functional[k]["Button"] = gr.Button(k, variant=variant)
             with gr.Accordion("函数插件区", open=True) as area_crazy_fn:
                 #with gr.Row():
                 #    gr.Markdown("注意：以下“红颜色”标识的函数插件需从input区读取路径作为参数.")
@@ -84,15 +84,16 @@ with gr.Blocks(theme=set_theme, analytics_enabled=False, css=advanced_css) as de
                 system_prompt = gr.Textbox(show_label=True, placeholder=f"System Prompt", label="System prompt", value=initial_prompt)
                 top_p = gr.Slider(minimum=-0, maximum=1.0, value=1.0, step=0.01,interactive=True, label="Top-p (nucleus sampling)",)
                 temperature = gr.Slider(minimum=-0, maximum=2.0, value=0.0, step=0.01, interactive=True, label="Temperature",)
-                checkboxes = gr.CheckboxGroup(["基础功能区", "函数插件区"], value=["基础功能区", "函数插件区"], label="显示/隐藏功能区")
+                checkboxes = gr.CheckboxGroup(["函数插件区"], value=["函数插件区"], label="显示/隐藏功能区")
                 gr.Markdown(description)
     # 功能区显示开关与功能区的互动
     def fn_area_visibility(a):
         ret = {}
-        ret.update({area_basic_fn: gr.update(visible=("基础功能区" in a))})
+        #ret.update({area_basic_fn: gr.update(visible=("基础功能区" in a))})
         ret.update({area_crazy_fn: gr.update(visible=("函数插件区" in a))})
         return ret
-    checkboxes.select(fn_area_visibility, [checkboxes], [area_basic_fn, area_crazy_fn] )
+    #checkboxes.select(fn_area_visibility, [checkboxes], [area_basic_fn, area_crazy_fn] )
+    checkboxes.select(fn_area_visibility, [checkboxes], [area_crazy_fn] )
     # 整理反复出现的控件句柄组合
     input_combo = [txt, top_p, temperature, chatbot, history, system_prompt]
     output_combo = [chatbot, history, status]
@@ -102,10 +103,12 @@ with gr.Blocks(theme=set_theme, analytics_enabled=False, css=advanced_css) as de
     cancel_handles.append(txt.submit(**predict_args)) #; txt.submit(**empty_txt_args) 在提交后清空输入栏
     cancel_handles.append(submitBtn.click(**predict_args)) #; submitBtn.click(**empty_txt_args) 在提交后清空输入栏
     resetBtn.click(lambda: ([], [], "已重置"), None, output_combo)
+
     # 基础功能区的回调函数注册
-    for k in functional:
-        click_handle = functional[k]["Button"].click(predict, [*input_combo, gr.State(True), gr.State(k)], output_combo)
-        cancel_handles.append(click_handle)
+    #for k in functional:
+    #    click_handle = functional[k]["Button"].click(predict, [*input_combo, gr.State(True), gr.State(k)], output_combo)
+    #    cancel_handles.append(click_handle)
+
     # 文件上传区，接收文件后与chatbot的互动
     file_upload.upload(on_file_uploaded, [file_upload, chatbot, txt], [chatbot, txt])
     # 函数插件-固定按钮区
